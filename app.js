@@ -4,7 +4,7 @@ var express = require('express')
   , server = http.createServer(app)
   , io = require('socket.io').listen(server);
 
-server.listen(8080);
+server.listen(80);
 
 var logger  = io.log;
 //var sleep = require('sleep');
