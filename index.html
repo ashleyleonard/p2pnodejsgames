@@ -1,0 +1,646 @@
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+<script>
+	var socket = io.connect('http://localhost:8080');
+        var user; //the device user
+        var challeger; //the challeger 
+        var points = 0;
+        var mode;  //Challenger or Challenged
+        
+        var timerId;
+        var timerLeft=0;
+        
+        var gameId = '';
+        
+        var noInSeq = 0;
+        var colorSeq = [];
+        var noCurrSeq = 0;
+        
+        var noOfPlayTurns = 0;
+        
+	
+
+      
+    
+        // on connection to server, ask for user's name with an anonymous callback
+	socket.on('connect', function(){
+		// call the server-side function 'adduser' and send one parameter (value of prompt)
+                user = prompt("What's your name?");
+		socket.emit('adduser', user);
+	});
+
+
+	// listener, whenever the server emits 'updatechat', this updates the chat body
+	socket.on('updatechat', function (username, data) {
+                $('#conversation').empty();
+		$('#conversation').append('<b>'+username + ':</b> ' + data + '<br>');
+	});
+
+	// listener, whenever the server emits 'updaterooms', this updates the room the client is in
+	socket.on('updaterooms', function(rooms, current_room) {
+		$('#rooms').empty();
+		$.each(rooms, function(key, value) {
+			//if(value == current_room){
+				$('#rooms').append('<div>' + value + '</div>');
+			//}
+			//else {
+			//	$('#rooms').append('<div><a href="#" onclick="switchRoom(\''+value+'\')">' + value + '</a></div>');
+			//}
+		});
+	});
+
+
+	socket.on('updateusers', function(users, current_user) {   //, updateusers
+		$('#users').empty();
+                $('#users').append('<b>Players</b><BR>');
+                $('#users').append('<b>Select users from below</b><BR>');                   
+                                
+                //var d = false;
+            
+                $.each(users, function(key, value) {
+                    
+                        //var playing = false;
+                        //$.each(updateusers, function(key1, value1) {
+                        //    $('#users').append('<div>' + value + '(In Challenge)</div>');
+                        //}
+                        
+			if(value == user){
+				$('#users').append('<div>' + value + '(ME)</div>');
+			}
+			else {
+                                //if(!d) {
+                                //      $('#users').append('<b>Select users from below</b><BR>');                   
+                                //      d = true;
+                                //}
+				$('#users').append('<div><a href="#" onclick="challengeUser(\''+value+'\')">' + value + '</a></div>');
+			}
+		});
+                
+                //$('#conversation').append('<b>' + 'Please select user to challenge' + '</b> ' + '<br>');
+                
+	});
+        
+        
+	socket.on('challenge', function(user, challengeUser, challengePoints  ) {
+                $('#conversation').empty();
+		$('#conversation').append('<b>'+challengeUser + ' challenges you (' + user + ') for ' + challengePoints + ' points:</b> ' + '<br>');
+                $('#accept').show();
+                $('#reject').show();
+                challenger = challengeUser;
+                points = challengePoints;
+                
+
+	});
+
+    
+    	socket.on('acceptChallenge', function(user, challengeUser, challengePoints, game  ) {
+		$('#conversation').empty();
+                $('#conversation').append('<b>'+challengeUser + ' challenge has been accepted by you (' + user + ') for ' + challengePoints + ' points:</b> ' + '<br>');
+                challenger = challengeUser;
+                points = challengePoints;
+                gameId = game;
+                socket.emit('accept', challenger);
+
+	});
+        
+        socket.on('rejectChallenge', function(user, challengeUser, challengePoints  ) {
+		$('#conversation').empty();
+                $('#conversation').append('<b>'+challengeUser + ' challenge has been rejected by you (' + user + ') for ' + challengePoints + ' points:</b> ' + '<br>');
+                
+                socket.emit('reject', challenger);
+                challenger = "";
+                points = 0;
+                gameId = '';
+                $('#accept').hide();
+                $('#reject').hide();
+                
+
+	});
+        
+        socket.on('gameStart', function(user, challengeUser, game   ) {
+                $('#conversation').empty();
+		$('#conversation').append('<b>Challenge has started been started for ' + game + '</b> ' + '<br>');
+                
+                
+                challenger = challengeUser;
+                //points = challengePoints;
+                gameId = game;
+                
+                $('#users').hide();
+               
+
+	});
+        
+        socket.on('play', function(turns, noinSeq, newCol) {
+            
+                if(newCol != ''){
+                    colorSeq.push(newCol);                   
+                }
+                noInSeq = noinSeq;
+                noOfPlayTurns = turns;
+                
+                $('#coloursPlayed').empty();
+                noCurrSeq = 0;
+                $('#conversation').empty();
+		$('#conversation').append('<b>' + user + ' Your turn (' + turns + ')</b>' + '<br>');
+                
+                
+                $('#red').show();
+                $('#orange').show();
+                $('#yellow').show();
+                $('#green').show();
+                $('#blue').show();
+                $('#violet').show();
+            
+                
+                $('#time').show();
+                
+                timerLeft = (10000 * turns) + (5000 * (turns -1 ));
+                //AL timer 2000 * turns + 500 * turns -1
+                $('#time').empty();    
+                $('#time').append('<b>' + user + ' Time Remaining ' + (timerLeft/1000) + 's</b>' + '<br>');
+                            
+                timerId = window.setTimeout( "timePlay()" , 5000);
+                
+                //$(function() {
+                //    timerId = setInterval("timePlay()" , 5000);
+                //});
+                          
+
+
+	});
+        
+        
+        socket.on('showColourSequence', function(data) {
+                
+                //$('#coloursPlayed').append('<b>'+ data + '</b> ' + '<br>');
+                if(data != ''){
+                    $('#coloursPlayed').append('<input style=\"width:10px;color: #000;background: ' + data + ';border-color: ' + data + '\" type=\"button\" value=\" \" />');
+                    
+                }
+                else {
+                    $('#coloursPlayed').empty();
+                }
+            
+            
+                
+
+                //<input style="width:80px;color: #000;background: red;border-color: red" type="button" value="" />
+
+	});
+        
+        socket.on('gameResult', function(gameWinner) {
+                $('#conversation').empty();
+                $('#conversation').append('<b>'+ gameWinner + ' is the Winner of ' + points + ' points</b> ' + '<br>');
+                var now = new Date();
+                
+                socket.emit('resetGame', now.format("dd/M/yy h:mm tt"), user, gameId, challenger, gameWinner,  points);
+        
+                $('#users').show();
+        
+	});
+        
+        
+        
+        function timePlay() { 
+            timerLeft = timerLeft - 5000;
+            $('#time').empty();    
+            $('#time').append('<b>' + user + ' Time Remaining ' + (timerLeft/1000) + 's</b>' + '<br>');
+
+            if(timerLeft <= 0) {
+                //timeup loose
+                //send game end
+                socket.emit('gameResult', user, challenger, challenger,  points);
+                clearInterval(timerId);
+
+                $('#time').hide();
+            }
+            else {
+                //timerId = window.setTimeout(this, 5000);
+            }
+
+        }  
+        
+	
+        function challengeUser(user){
+                points = prompt("How much points?", 100);
+		socket.emit('challengeUser', user, points);
+	}
+
+	// on load of page
+	$(function(){
+		
+    
+    
+                $('#accept').click( function() {
+			var message = challenger;
+			// tell server to execute 'sendchat' and send along one parameter
+			socket.emit('accept', message);
+                        //$('#data').val($(this).val());
+        
+                        $('#accept').hide();
+                        $('#reject').hide();
+
+                        
+		});
+    
+                $('#reject').click( function() {
+			var message = challenger;
+			// tell server to execute 'sendchat' and send along one parameter
+			socket.emit('reject', message);
+                        //$('#data').val($(this).val());
+                        
+                        $('#accept').hide();
+                        $('#reject').hide();
+                        
+		});
+
+                
+
+		$('#red').click( function () {
+                        //var message = $(this).val();
+                        // tell server to execute 'sendchat' and send along one parameter
+                        //socket.emit('sendchat', message);
+                        noCurrSeq++;
+
+                        if(noCurrSeq > noInSeq) {
+                            //$('#conversation').append( 'correct so far - new color' + '<br>');
+                            //correct so far - new color
+                            colorSeq.push($(this).val());
+                            socket.emit('sendchat', $(this).val(), true , noOfPlayTurns, noCurrSeq);
+                            noInSeq = noCurrSeq;
+                            noCurrSeq = 0;
+                            $('#red').hide();
+                            $('#orange').hide();
+                            $('#yellow').hide();
+                            $('#green').hide();
+                            $('#blue').hide();
+                            $('#violet').hide();                      
+                            
+                            $('#coloursPlayed').empty();
+                        }
+                        else {
+                                if(colorSeq[noCurrSeq - 1] == $(this).val()) {
+                                    //correct value play on
+                                    //$('#conversation').append( 'correct value play on' + '<br>');
+                                    socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq );
+                                }
+                                else {
+                                    //$('#conversation').append( 'incorrect' + '<br>');
+                                    //incorrect
+                                    //socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq);                       
+                                    socket.emit('gameResult', user);
+                                    clearInterval(timerId);
+                                    $('#red').hide();
+                                    $('#orange').hide();
+                                    $('#yellow').hide();
+                                    $('#green').hide();
+                                    $('#blue').hide();
+                                    $('#violet').hide();
+                                    
+                                    $('#coloursPlayed').empty();
+                                }
+                        }
+                        
+                        //$('#conversation').append( 'noOfPlayTurns: ' + noOfPlayTurns + '<br>');
+                        //$('#conversation').append( 'noCurrSeq: ' + noCurrSeq + '<br>');
+                        //$('#conversation').append( 'noInSeq: ' + noInSeq + '<br>');
+                        //$('#conversation').append( 'col: ' + $(this).val() + '<br>');
+                        //$('#conversation').append( 'colorSeq.length: ' + colorSeq.length + '<br>');
+                        //for (var i = 0; i < colorSeq.length; i++) {
+                        //    $('#conversation').append( 'colorSeq' + i + ':' + colorSeq[i] + '<br>');
+                        //}                
+
+                        
+                    });
+ 
+                    $('#orange').click( function () {
+                        //var message = $(this).val();
+                        // tell server to execute 'sendchat' and send along one parameter
+                        //socket.emit('sendchat', message);
+                        noCurrSeq++;
+                        
+                        if(noCurrSeq > noInSeq) {
+                            //$('#conversation').append( 'correct so far - new color' + '<br>');
+                            //correct so far - new color
+                            colorSeq.push($(this).val());
+                            socket.emit('sendchat', $(this).val(), true , noOfPlayTurns, noCurrSeq);
+                            noInSeq = noCurrSeq;
+                            noCurrSeq = 0;
+                            $('#red').hide();
+                            $('#orange').hide();
+                            $('#yellow').hide();
+                            $('#green').hide();
+                            $('#blue').hide();
+                            $('#violet').hide();                      
+                            
+                            $('#coloursPlayed').empty();
+                        }
+                        else {
+                                if(colorSeq[noCurrSeq - 1] == $(this).val()) {
+                                    //correct value play on
+                                    //$('#conversation').append( 'correct value play on' + '<br>');
+                                    socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq );
+                                }
+                                else {
+                                    //$('#conversation').append( 'incorrect' + '<br>');
+                                    //incorrect
+                                    //socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq);                       
+                                    socket.emit('gameResult', user);
+                                    clearInterval(timerId);
+                                    $('#red').hide();
+                                    $('#orange').hide();
+                                    $('#yellow').hide();
+                                    $('#green').hide();
+                                    $('#blue').hide();
+                                    $('#violet').hide();
+                                    
+                                    $('#coloursPlayed').empty();
+                                }
+                        }
+                        
+                        //$('#conversation').append( 'noOfPlayTurns: ' + noOfPlayTurns + '<br>');
+                        //$('#conversation').append( 'noCurrSeq: ' + noCurrSeq + '<br>');
+                        //$('#conversation').append( 'noInSeq: ' + noInSeq + '<br>');
+                        //$('#conversation').append( 'col: ' + $(this).val() + '<br>');
+                        //$('#conversation').append( 'colorSeq.length: ' + colorSeq.length + '<br>');
+                        //for (var i = 0; i < colorSeq.length; i++) {
+                        //    $('#conversation').append( 'colorSeq' + i + ':' + colorSeq[i] + '<br>');
+                        //}                
+
+                        
+                    });
+                     
+                $('#yellow').click( function () {
+                        //var message = $(this).val();
+                        // tell server to execute 'sendchat' and send along one parameter
+                        //socket.emit('sendchat', message);
+                        noCurrSeq++;
+                        
+                        if(noCurrSeq > noInSeq) {
+                            //$('#conversation').append( 'correct so far - new color' + '<br>');
+                            //correct so far - new color
+                            colorSeq.push($(this).val());
+                            socket.emit('sendchat', $(this).val(), true , noOfPlayTurns, noCurrSeq);
+                            noInSeq = noCurrSeq;
+                            noCurrSeq = 0;
+                            $('#red').hide();
+                            $('#orange').hide();
+                            $('#yellow').hide();
+                            $('#green').hide();
+                            $('#blue').hide();
+                            $('#violet').hide();                      
+                            
+                            $('#coloursPlayed').empty();
+                        }
+                        else {
+                                if(colorSeq[noCurrSeq - 1] == $(this).val()) {
+                                    //correct value play on
+                                    //$('#conversation').append( 'correct value play on' + '<br>');
+                                    socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq );
+                                }
+                                else {
+                                    //$('#conversation').append( 'incorrect' + '<br>');
+                                    //incorrect
+                                    //socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq);                       
+                                    socket.emit('gameResult', user);
+                                    clearInterval(timerId);
+                                    $('#red').hide();
+                                    $('#orange').hide();
+                                    $('#yellow').hide();
+                                    $('#green').hide();
+                                    $('#blue').hide();
+                                    $('#violet').hide();
+                                    
+                                    $('#coloursPlayed').empty();
+                                }
+                        }
+                        
+                        //$('#conversation').append( 'noOfPlayTurns: ' + noOfPlayTurns + '<br>');
+                        //$('#conversation').append( 'noCurrSeq: ' + noCurrSeq + '<br>');
+                        //$('#conversation').append( 'noInSeq: ' + noInSeq + '<br>');
+                        //$('#conversation').append( 'col: ' + $(this).val() + '<br>');
+                        //$('#conversation').append( 'colorSeq.length: ' + colorSeq.length + '<br>');
+                        //for (var i = 0; i < colorSeq.length; i++) {
+                        //    $('#conversation').append( 'colorSeq' + i + ':' + colorSeq[i] + '<br>');
+                        //}                
+
+                        
+                    });
+            
+                    $('#green').click( function () {
+                        //var message = $(this).val();
+                        // tell server to execute 'sendchat' and send along one parameter
+                        //socket.emit('sendchat', message);
+                        noCurrSeq++;
+                        
+                        if(noCurrSeq > noInSeq) {
+                            //$('#conversation').append( 'correct so far - new color' + '<br>');
+                            //correct so far - new color
+                            colorSeq.push($(this).val());
+                            socket.emit('sendchat', $(this).val(), true , noOfPlayTurns, noCurrSeq);
+                            noInSeq = noCurrSeq;
+                            noCurrSeq = 0;
+                            $('#red').hide();
+                            $('#orange').hide();
+                            $('#yellow').hide();
+                            $('#green').hide();
+                            $('#blue').hide();
+                            $('#violet').hide();                      
+                            
+                            $('#coloursPlayed').empty();
+                        }
+                        else {
+                                if(colorSeq[noCurrSeq - 1] == $(this).val()) {
+                                    //correct value play on
+                                    //$('#conversation').append( 'correct value play on' + '<br>');
+                                    socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq );
+                                }
+                                else {
+                                    //$('#conversation').append( 'incorrect' + '<br>');
+                                    //incorrect
+                                    //socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq);                       
+                                    socket.emit('gameResult', user);
+                                    clearInterval(timerId);
+                                    $('#red').hide();
+                                    $('#orange').hide();
+                                    $('#yellow').hide();
+                                    $('#green').hide();
+                                    $('#blue').hide();
+                                    $('#violet').hide();
+                                    
+                                    $('#coloursPlayed').empty();
+                                }
+                        }
+                        
+                        //$('#conversation').append( 'noOfPlayTurns: ' + noOfPlayTurns + '<br>');
+                        //$('#conversation').append( 'noCurrSeq: ' + noCurrSeq + '<br>');
+                        //$('#conversation').append( 'noInSeq: ' + noInSeq + '<br>');
+                        //$('#conversation').append( 'col: ' + $(this).val() + '<br>');
+                        //$('#conversation').append( 'colorSeq.length: ' + colorSeq.length + '<br>');
+                        //for (var i = 0; i < colorSeq.length; i++) {
+                        //    $('#conversation').append( 'colorSeq' + i + ':' + colorSeq[i] + '<br>');
+                        //}                
+
+                        
+                    });
+            
+                $('#blue').click( function () {
+                        //var message = $(this).val();
+                        // tell server to execute 'sendchat' and send along one parameter
+                        //socket.emit('sendchat', message);
+                        noCurrSeq++;
+                        
+                        if(noCurrSeq > noInSeq) {
+                            //$('#conversation').append( 'correct so far - new color' + '<br>');
+                            //correct so far - new color
+                            colorSeq.push($(this).val());
+                            socket.emit('sendchat', $(this).val(), true , noOfPlayTurns, noCurrSeq);
+                            noInSeq = noCurrSeq;
+                            noCurrSeq = 0;
+                            $('#red').hide();
+                            $('#orange').hide();
+                            $('#yellow').hide();
+                            $('#green').hide();
+                            $('#blue').hide();
+                            $('#violet').hide();                      
+                            
+                            $('#coloursPlayed').empty();
+                        }
+                        else {
+                                if(colorSeq[noCurrSeq - 1] == $(this).val()) {
+                                    //correct value play on
+                                    //$('#conversation').append( 'correct value play on' + '<br>');
+                                    socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq );
+                                }
+                                else {
+                                    //$('#conversation').append( 'incorrect' + '<br>');
+                                    //incorrect
+                                    //socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq);                       
+                                    socket.emit('gameResult', user);
+                                    clearInterval(timerId);
+                                    $('#red').hide();
+                                    $('#orange').hide();
+                                    $('#yellow').hide();
+                                    $('#green').hide();
+                                    $('#blue').hide();
+                                    $('#violet').hide();
+                                    
+                                    $('#coloursPlayed').empty();
+                                }
+                        }
+                        
+                        //$('#conversation').append( 'noOfPlayTurns: ' + noOfPlayTurns + '<br>');
+                        //$('#conversation').append( 'noCurrSeq: ' + noCurrSeq + '<br>');
+                        //$('#conversation').append( 'noInSeq: ' + noInSeq + '<br>');
+                        //$('#conversation').append( 'col: ' + $(this).val() + '<br>');
+                        //$('#conversation').append( 'colorSeq.length: ' + colorSeq.length + '<br>');
+                        //for (var i = 0; i < colorSeq.length; i++) {
+                        //    $('#conversation').append( 'colorSeq' + i + ':' + colorSeq[i] + '<br>');
+                        //}                
+
+                        
+                    });
+ 	                           
+                $('#violet').click( function () {
+                        //var message = $(this).val();
+                        // tell server to execute 'sendchat' and send along one parameter
+                        //socket.emit('sendchat', message);
+                        noCurrSeq++;
+                        
+                        if(noCurrSeq > noInSeq) {
+                            //$('#conversation').append( 'correct so far - new color' + '<br>');
+                            //correct so far - new color
+                            colorSeq.push($(this).val());
+                            socket.emit('sendchat', $(this).val(), true , noOfPlayTurns, noCurrSeq);
+                            noInSeq = noCurrSeq;
+                            noCurrSeq = 0;
+                            $('#red').hide();
+                            $('#orange').hide();
+                            $('#yellow').hide();
+                            $('#green').hide();
+                            $('#blue').hide();
+                            $('#violet').hide();                      
+                            
+                            $('#coloursPlayed').empty();
+                        }
+                        else {
+                                if(colorSeq[noCurrSeq - 1] == $(this).val()) {
+                                    //correct value play on
+                                    //$('#conversation').append( 'correct value play on' + '<br>');
+                                    socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq );
+                                }
+                                else {
+                                    //$('#conversation').append( 'incorrect' + '<br>');
+                                    //incorrect
+                                    //socket.emit('sendchat', $(this).val(), false , noOfPlayTurns, noInSeq);                       
+                                    socket.emit('gameResult', user);
+                                    clearInterval(timerId);
+                                    $('#red').hide();
+                                    $('#orange').hide();
+                                    $('#yellow').hide();
+                                    $('#green').hide();
+                                    $('#blue').hide();
+                                    $('#violet').hide();
+                                    
+                                    $('#coloursPlayed').empty();
+                                }
+                        }
+                        
+                        //$('#conversation').append( 'noOfPlayTurns: ' + noOfPlayTurns + '<br>');
+                        //$('#conversation').append( 'noCurrSeq: ' + noCurrSeq + '<br>');
+                        //$('#conversation').append( 'noInSeq: ' + noInSeq + '<br>');
+                        //$('#conversation').append( 'col: ' + $(this).val() + '<br>');
+                        //$('#conversation').append( 'colorSeq.length: ' + colorSeq.length + '<br>');
+                        //for (var i = 0; i < colorSeq.length; i++) {
+                        //    $('#conversation').append( 'colorSeq' + i + ':' + colorSeq[i] + '<br>');
+                        //}                
+
+                        
+                    });
+ 	                
+                $('#red').hide();
+                $('#orange').hide();
+                $('#yellow').hide();
+                $('#green').hide();
+                $('#blue').hide();
+                $('#violet').hide();
+                
+                $('#accept').hide();
+                $('#reject').hide();
+
+                $('#time').hide();
+                $('#rooms').hide();
+                
+                //$('#matrix').hide();
+                //$('#challenge').hide();
+                
+                
+	});
+
+</script>
+
+<div id="main" style="alignment-baseline: central;width:100%">
+        <b>The Game</b>
+	<div id="rooms"></div>
+	<div id="time"></div>
+        <div id="coloursPlayed"></div>   
+        
+        <div id="challenge">
+            <div id="message"></div>    
+            <input  type="button" id="accept" value="Accept" />	
+            <input  type="button" id="reject" value="Reject" />        
+        <div>
+        <div id="matrix">
+            <input style="width:80px;color: #000;background: red;border-color: red" type="button" id="red" value="red" />
+            <input style="width:80px;color: #000;background: orange;border-color: orange" type="button" id="orange" value="orange" />
+            <input style="width:80px;color: #000;background: yellow;border-color: yellow" type="button" id="yellow" value="yellow" />
+            <BR>
+            <input style="width:80px;color: #000;background: green;border-color: green" type="button" id="green" value="green" />
+            <input style="width:80px;color: #000;background: blue;border-color: blue" type="button" id="blue" value="blue" />
+            <input style="width:80px;color: #000;background: violet;border-color: violet" type="button" id="violet" value="violet" />        
+        </div>
+        <BR>
+        <div id="conversation"></div>
+	<div id="users"></div>
+</div>
