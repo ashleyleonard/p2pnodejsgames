@@ -1,10 +1,17 @@
 {
-  "name": "gameP2P"
- , "description": "gameP2P"
- , "version": "0.0.2"
-, "dependencies": {
-    "express": "latest"    
-	, "socket.io": "latest"
-        , "jquery": "latest"
+  "name": "gameP2P",
+  "description": "gameP2P",
+  "version": "0.0.2-1",
+  "dependencies": {
+    "express": "latest",
+    "socket.io": "latest",
+    "jquery": "latest"
+  },
+  "subdomain": "ashleyleonard777-p2pnodejsgames",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": "0.8.x"
   }
 }
